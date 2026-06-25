@@ -1,0 +1,16 @@
+{
+  "name": "stock-evaluator-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.16.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^4.22.2",
+    "openai": "^6.37.0"
+  }
+}
