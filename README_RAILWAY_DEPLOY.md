@@ -1,25 +1,20 @@
 # Railway Deployment Guide
 
-This version is set up so Railway can run the backend continuously and serve the built React frontend from the same Express service.
+This folder is the Railway-ready build of the stock evaluator/paper-trading app. It is intended to be committed to GitHub and deployed to Railway as one service.
 
-## What Railway will run
+## What Railway runs
 
-Railway will use the root `Dockerfile` because `railway.json` sets the builder to Dockerfile.
+Railway uses the root `Dockerfile` and `railway.json`.
 
-The Docker image does this:
+The Docker build:
 
-1. Installs `backend` dependencies.
-2. Installs `frontend` dependencies.
-3. Builds the React app with `npm run build` inside `frontend`.
-4. Starts the Express backend with `node backend/server.js`.
-5. Express serves both `/api/...` routes and the built frontend from `frontend/dist`.
+1. Installs frontend dependencies.
+2. Builds the React frontend.
+3. Installs backend production dependencies.
+4. Copies the built frontend into the final image.
+5. Starts Express with `node backend/server.js`.
 
-You do not need a second Railway service for the frontend.
-
-
-## API key setup
-
-Do not commit `backend/.env` or any real API key to GitHub. For local testing, run `setup_local_env.bat`. For Railway, add the real key in the Railway service Variables tab. See `README_API_KEYS_AND_DEPLOY.md` for the short checklist.
+Express serves both the API routes and the React frontend from the same Railway domain.
 
 ## Required Railway variables
 
@@ -35,7 +30,7 @@ SERVE_FRONTEND=true
 Recommended optional variables:
 
 ```text
-TWELVE_DATA_API_KEY=your_twelve_data_key_here
+TWELVE_DATA_API_KEY=
 OPENAI_API_KEY=
 QUOTE_CACHE_MS=300000
 CLOSED_MARKET_QUOTE_CACHE_MS=3600000
@@ -44,149 +39,84 @@ FINNHUB_REQUEST_DELAY_MS=250
 PAPER_TRADING_IGNORE_MARKET_HOURS=false
 ```
 
-A copy-paste variable template is included in `RAILWAY_VARIABLES_COPY_PASTE.txt`. Put real API keys in Railway Variables, not in GitHub.
+A copy-paste template is included in `RAILWAY_VARIABLES_COPY_PASTE.txt`.
 
-Do not manually set `PORT` unless Railway tells you to. The app already uses `process.env.PORT`, and Railway injects that value.
+Do not set `PORT` manually. Railway injects `PORT`, and the backend already reads `process.env.PORT`.
 
 ## Persistent wallet storage
 
-The fake wallets and Restart Menu settings are stored in JSON. On Railway, normal container files can be lost when the app redeploys or restarts, so use a Railway Volume.
-
-Recommended Railway setup:
-
-1. Open your Railway project.
-2. Select the stock evaluator service.
-3. Add a Volume.
-4. Set the volume mount path to:
+Add a Railway Volume mounted at:
 
 ```text
 /data
 ```
 
-5. Add this variable:
+This keeps the fake wallet state, activity history, edited ticker lists, restart-menu settings, and baselines after redeploys or restarts.
 
-```text
-PAPER_TRADING_DATA_DIR=/data
-```
-
-The app will then store the paper wallets at:
-
-```text
-/data/paperWallets.json
-```
-
-If you skip the volume, the app can still run, but wallet history, activity lists, market-gain accounting, and Restart Menu settings may reset after redeploys.
-
-
-## Wallet defaults in this version
-
-- Strategy 1 default buy amount: `$1` added as new fake input money on each up signal.
-- Strategy 2 default starting value: `$1,000` total, split evenly across the tracked symbols.
-- Both values can be changed from the wallet page Restart Menu.
-- Market Gain is shown separately from input money so deposits are not counted as profit.
+Without a mounted volume, the app can run, but wallet history may reset when Railway redeploys the container.
 
 ## GitHub deployment steps
 
-1. Put this whole folder in a GitHub repo.
-2. Push your repo to GitHub.
-3. In Railway, create a new project.
-4. Choose **Deploy from GitHub repo**.
-5. Select the repo.
-6. Add the required variables above.
-7. Add a Railway Volume mounted at `/data`.
-8. Deploy.
-9. Open `/api/health` on your Railway URL to check the backend.
-10. Open the root Railway URL to use the dashboard and wallet page.
+1. Commit this folder to your GitHub repo.
+2. In Railway, create a new project.
+3. Choose **Deploy from GitHub repo**.
+4. Select this repo and branch.
+5. Add the variables above.
+6. Add the `/data` volume.
+7. Deploy or redeploy.
+8. Open `/api/health` to confirm the backend is healthy.
+9. Open `/viewer` for the read-only progress page.
 
-## Important cost note
+## Health checks
 
-This app is designed to keep API usage low:
-
-- 30 quote requests every 5 minutes.
-- Cached dashboard data.
-- Optional/manual AI analysis.
-- Local JSON fake wallet storage.
-- No paid broker or external paper-trading account required.
-
-Hosting 24/7 can still consume Railway usage/credits. Watch Railway usage and cost limits.
-
-## Local development
-
-Backend:
-
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-Frontend:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-For local frontend development, keep `frontend/.env` as:
+After deploy, check:
 
 ```text
-VITE_API_BASE_URL=http://localhost:3001
+https://your-app.up.railway.app/api/health
 ```
 
-For Railway production, you do not need `VITE_API_BASE_URL` because the frontend and API are served from the same domain.
+You want to see:
 
-## Market-hours protection
+```json
+"status": "ok",
+"hasFinnhubKey": true
+```
 
-This version only refreshes quote values and runs simulated buy/sell cycles during the regular U.S. stock-market core session:
+If `hasFinnhubKey` is false, add or fix the `FINNHUB_API_KEY` Railway variable and redeploy.
+
+## Public pages
+
+Main app:
 
 ```text
-Monday-Friday, 9:30 a.m. to 4:00 p.m. America/New_York time
+/
 ```
 
-The backend also skips weekends and common full-day U.S. market holidays. Outside that window:
-
-- the scheduled 5-minute trading loop is skipped;
-- the manual **Run Cycle Now** button is disabled on the wallet page;
-- simulated buy/sell cycles are skipped;
-- wallet/viewer pages show holdings and activity;
-- quote display can still refresh from Finnhub using a slower closed-market cache so prices do not sit at `$0.00` after close.
-
-For rare testing only, you can disable this gate with:
-
-```text
-PAPER_TRADING_IGNORE_MARKET_HOURS=true
-```
-
-Keep that variable unset or `false` for normal Railway use.
-
-## Public viewer page
-
-A read-only viewer page is available at:
+Read-only viewer page:
 
 ```text
 /viewer
 ```
 
-Example after Railway deploy:
+Backup viewer aliases:
 
 ```text
-https://your-railway-app.up.railway.app/viewer
+/progress
+/public
 ```
 
-This page is intentionally not linked from the dashboard or wallet navigation. It shows both strategies, combined totals, market gain, money added/starting value, volume traded, current holdings, and strategy activity. It does not include restart buttons or wallet controls.
+## Trading behavior
 
-## API usage with custom ticker lists
+The backend only performs simulated buy/sell cycles during regular U.S. stock-market core hours:
 
-Strategy 1 and Strategy 2 can each have up to 30 tickers. If the same ticker appears in both strategies, the backend fetches one quote and shares it. If both lists are different, the maximum normal quote load is 60 symbols every 5 minutes, which averages about 12 Finnhub quote calls per minute before manual buttons, news, or test endpoints.
-
-
-## Local API key setup
-
-For local Windows testing, run:
-
-```bat
-setup_local_env.bat
+```text
+Monday-Friday, 9:30 a.m. to 4:00 p.m. America/New_York time
 ```
 
-This creates `backend/.env` on your computer. Do not commit `backend/.env` to GitHub. For Railway, add the same values in the Railway Variables tab instead of using a `.env` file.
+Outside that window, fake trading is paused, but display quotes can still refresh with a slower closed-market cache so prices do not stay at zero after close.
+
+## API usage design
+
+The app uses Finnhub quote caching. Strategy 1 and Strategy 2 can each have up to 30 tickers. If the same ticker appears in both strategies, the backend fetches one shared quote and uses it for both fake wallets.
+
+The app reads API keys from Railway Variables. No `.env` file is required or included for Railway.

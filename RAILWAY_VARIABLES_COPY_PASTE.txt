@@ -1,7 +1,7 @@
 Paste these into Railway -> your service -> Variables.
-Replace only the placeholder values. Do NOT commit real API keys to GitHub.
+Replace placeholder values with your real keys inside Railway.
 
-FINNHUB_API_KEY=PASTE_YOUR_FINNHUB_KEY_IN_RAILWAY_ONLY
+FINNHUB_API_KEY=PASTE_YOUR_FINNHUB_KEY_HERE
 PAPER_TRADING_DATA_DIR=/data
 NODE_ENV=production
 SERVE_FRONTEND=true

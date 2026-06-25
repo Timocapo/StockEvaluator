@@ -1,7 +1,7 @@
 FROM node:22-alpine AS frontend-build
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm ci --registry=https://registry.npmjs.org/ --no-audit --no-fund
 COPY frontend ./
 RUN npm run build
 
@@ -12,7 +12,7 @@ ENV PAPER_TRADING_DATA_DIR=/data
 ENV SERVE_FRONTEND=true
 
 COPY backend/package*.json ./backend/
-RUN cd backend && npm ci --omit=dev
+RUN cd backend && npm ci --omit=dev --registry=https://registry.npmjs.org/ --no-audit --no-fund
 COPY backend ./backend
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 

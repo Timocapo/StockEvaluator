@@ -6,6 +6,11 @@ backend/.env
 frontend/.env
 .env
 .env.*
+**/.env
+**/.env.*
 backend/data/*.json
+/data/
 npm-debug.log*
 .DS_Store
+setup_local_env.bat
+start_stock_evaluator_vite.bat
